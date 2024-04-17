@@ -8,23 +8,27 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	strEcho := "Halo"
+	ping := "ping"
 	serverAddr := "localhost:63790"
 	tcpAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if assert.NoError(t, err) {
 
 		conn, err := net.DialTCP("tcp", nil, tcpAddr)
 		if assert.NoError(t, err) {
+
 			defer conn.Close()
-			_, err = conn.Write([]byte(strEcho + "\n"))
+			_, err = conn.Write([]byte(ping + "\r\n"))
 			if assert.NoError(t, err) {
-				println("write to server = ", strEcho)
+				println("write to server = ", ping)
 
 				reply := make([]byte, 1024)
 
-				_, err = conn.Read(reply)
-				if assert.NoError(t, err) {
-					println("reply from server=", string(reply))
+				if n, err := conn.Read(reply); err != nil {
+					assert.NoError(t, err)
+				} else {
+					resp := string(reply[:n])
+					println("reply from server=", resp)
+					assert.Equal(t, "pong\t\n", resp)
 				}
 			}
 		}

@@ -2,9 +2,12 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"strings"
 )
 
 var (
@@ -40,12 +43,25 @@ func handle(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 
 	for {
-		message, err := reader.ReadString('\n')
-		if err != nil {
-			log.Printf("Error reading message: %s", err)
-			return
+		var cmd string
+		var err error
+		if cmd, err = reader.ReadString('\n'); err != nil {
+			if !errors.Is(err, io.EOF) {
+				log.Printf("Error reading message: %s", err)
+				return
+			}
+			break
 		}
-		fmt.Printf("Message incoming: %s", string(message))
-		conn.Write([]byte("Message received.\n"))
+		cmd = strings.TrimSuffix(cmd, "\r\n")
+		fmt.Printf("Message incoming: %s\n", cmd)
+		handleCommand(conn, cmd)
+	}
+}
+
+func handleCommand(conn net.Conn, cmd string) {
+	if cmd == "ping" {
+		conn.Write([]byte("pong\t\n"))
+	} else {
+		conn.Write([]byte("-ERR unknown command\t\n"))
 	}
 }
