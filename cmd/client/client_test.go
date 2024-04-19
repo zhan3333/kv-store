@@ -2,35 +2,81 @@ package client_test
 
 import (
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestClient(t *testing.T) {
-	ping := "ping"
-	serverAddr := "localhost:63790"
+const LineSuffix = "\t\n"
+
+var (
+	serverAddr = "localhost:63790"
+)
+
+type Client struct {
+	conn *net.TCPConn
+}
+
+func NewClient() (*Client, error) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", serverAddr)
-	if assert.NoError(t, err) {
+	if err != nil {
+		return nil, err
+	}
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{conn}, nil
+}
 
-		conn, err := net.DialTCP("tcp", nil, tcpAddr)
-		if assert.NoError(t, err) {
+func (c *Client) Send(s string) error {
+	_, err := c.conn.Write([]byte(s + LineSuffix))
+	return err
+}
 
-			defer conn.Close()
-			_, err = conn.Write([]byte(ping + "\r\n"))
-			if assert.NoError(t, err) {
-				println("write to server = ", ping)
+func (c *Client) Recv() (string, error) {
+	reply := make([]byte, 1024)
 
-				reply := make([]byte, 1024)
+	if n, err := c.conn.Read(reply); err != nil {
+		return "", err
+	} else {
+		return strings.TrimSuffix(string(reply[:n]), LineSuffix), nil
+	}
+}
 
-				if n, err := conn.Read(reply); err != nil {
-					assert.NoError(t, err)
-				} else {
-					resp := string(reply[:n])
-					println("reply from server=", resp)
-					assert.Equal(t, "pong\t\n", resp)
-				}
-			}
-		}
+func TestPing(t *testing.T) {
+	ping := "ping"
+	cli, err := NewClient()
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	if err := cli.Send(ping); err != nil {
+		t.Fatal(err)
+	}
+
+	if resp, err := cli.Recv(); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.Equal(t, "pong", resp)
+	}
+}
+
+func TestSet(t *testing.T) {
+	set := "set key value"
+	cli, err := NewClient()
+	if !assert.NoError(t, err) {
+		t.FailNow()
+	}
+
+	if err := cli.Send(set); err != nil {
+		t.Fatal(err)
+	}
+
+	if resp, err := cli.Recv(); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.Equal(t, "OK", resp)
 	}
 }

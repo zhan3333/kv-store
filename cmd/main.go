@@ -10,9 +10,12 @@ import (
 	"strings"
 )
 
+const LineSuffix = "\t\n"
+
 var (
-	port = 63790
-	host = "0.0.0.0"
+	port  = 63790
+	host  = "0.0.0.0"
+	store = map[string]string{}
 )
 
 func main() {
@@ -52,7 +55,7 @@ func handle(conn net.Conn) {
 			}
 			break
 		}
-		cmd = strings.TrimSuffix(cmd, "\r\n")
+		cmd = strings.TrimSuffix(cmd, LineSuffix)
 		fmt.Printf("Message incoming: %s\n", cmd)
 		handleCommand(conn, cmd)
 	}
@@ -60,8 +63,19 @@ func handle(conn net.Conn) {
 
 func handleCommand(conn net.Conn, cmd string) {
 	if cmd == "ping" {
-		conn.Write([]byte("pong\t\n"))
+		conn.Write([]byte("pong" + LineSuffix))
+	} else if strings.HasPrefix(cmd, "set") {
+		sp := strings.Split(cmd, " ")
+		if len(sp) != 3 {
+			conn.Write([]byte("-ERR invalid command" + LineSuffix))
+			return
+		}
+		key, val := sp[1], sp[2]
+		store[key] = val
+		conn.Write([]byte("OK" + LineSuffix))
+		return
 	} else {
-		conn.Write([]byte("-ERR unknown command\t\n"))
+		conn.Write([]byte("-ERR unknown command" + LineSuffix))
+		return
 	}
 }
