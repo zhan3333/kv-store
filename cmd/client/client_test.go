@@ -12,6 +12,7 @@ const LineSuffix = "\t\n"
 
 var (
 	serverAddr = "localhost:63790"
+	cli *Client
 )
 
 type Client struct {
@@ -28,6 +29,15 @@ func NewClient() (*Client, error) {
 		return nil, err
 	}
 	return &Client{conn}, nil
+}
+
+func TestMain(m *testing.M) {
+	var err error
+	cli, err = NewClient()
+	if err != nil {
+		panic(err)
+	}
+	m.Run()
 }
 
 func (c *Client) Send(s string) error {
@@ -47,10 +57,6 @@ func (c *Client) Recv() (string, error) {
 
 func TestPing(t *testing.T) {
 	ping := "ping"
-	cli, err := NewClient()
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
 
 	if err := cli.Send(ping); err != nil {
 		t.Fatal(err)
@@ -65,10 +71,6 @@ func TestPing(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	set := "set key value"
-	cli, err := NewClient()
-	if !assert.NoError(t, err) {
-		t.FailNow()
-	}
 
 	if err := cli.Send(set); err != nil {
 		t.Fatal(err)
