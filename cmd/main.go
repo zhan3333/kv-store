@@ -74,6 +74,15 @@ func handleCommand(conn net.Conn, cmd string) {
 		store[key] = val
 		conn.Write([]byte("OK" + LineSuffix))
 		return
+	} else if strings.HasPrefix(cmd, "get") {
+		sp := strings.Split(cmd, " ")
+		if len(sp) != 2 {
+			conn.Write([]byte("-ERR invalid command" + LineSuffix))
+			return
+		}
+		key := sp[1]
+		conn.Write([]byte(store[key] + LineSuffix))
+		return
 	} else {
 		conn.Write([]byte("-ERR unknown command" + LineSuffix))
 		return

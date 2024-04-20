@@ -82,3 +82,32 @@ func TestSet(t *testing.T) {
 		assert.Equal(t, "OK", resp)
 	}
 }
+
+func TestGet(t *testing.T) {
+	// set value
+	set := "set key value"
+
+	if err := cli.Send(set); err != nil {
+		t.Fatal(err)
+	}
+
+	if resp, err := cli.Recv(); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.Equal(t, "OK", resp)
+	}
+
+
+	// get value
+	get := "get key"
+
+	if err := cli.Send(get); err != nil {
+		t.Fatal(err)
+	}
+
+	if resp, err := cli.Recv(); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.Equal(t, "value", resp)
+	}
+}
