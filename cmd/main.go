@@ -57,34 +57,48 @@ func handle(conn net.Conn) {
 		}
 		cmd = strings.TrimSuffix(cmd, LineSuffix)
 		fmt.Printf("Message incoming: %s\n", cmd)
-		handleCommand(conn, cmd)
+		if resp, err := handleCommand(cmd); err != nil {
+			conn.Write([]byte(fmt.Sprintf("Error: %s%s", err, LineSuffix)))
+		} else {
+			if resp == "" {
+				resp = "OK"
+			}
+			conn.Write([]byte(fmt.Sprintf("%s%s", resp, LineSuffix)))
+		}
 	}
 }
 
-func handleCommand(conn net.Conn, cmd string) {
+func handleCommand(cmd string) (resp string, err error) {
 	if cmd == "ping" {
-		conn.Write([]byte("pong" + LineSuffix))
+		resp = handlePing()
 	} else if strings.HasPrefix(cmd, "set") {
 		sp := strings.Split(cmd, " ")
 		if len(sp) != 3 {
-			conn.Write([]byte("-ERR invalid command" + LineSuffix))
-			return
+			return "", errors.New("invalid command")
 		}
 		key, val := sp[1], sp[2]
-		store[key] = val
-		conn.Write([]byte("OK" + LineSuffix))
-		return
+		handleSet(key, val)
 	} else if strings.HasPrefix(cmd, "get") {
 		sp := strings.Split(cmd, " ")
 		if len(sp) != 2 {
-			conn.Write([]byte("-ERR invalid command" + LineSuffix))
-			return
+			return "", errors.New("invalid command")
 		}
 		key := sp[1]
-		conn.Write([]byte(store[key] + LineSuffix))
-		return
+		resp = handleGet(key)
 	} else {
-		conn.Write([]byte("-ERR unknown command" + LineSuffix))
-		return
+		return "", errors.New("unknown command")
 	}
+	return resp, nil
+}
+
+func handlePing() string {
+	return "pong"
+}
+
+func handleGet(key string) string {
+	return store[key]
+}
+
+func handleSet(key, value string) {
+	store[key] = value
 }
