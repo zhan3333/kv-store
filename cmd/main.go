@@ -85,6 +85,8 @@ func handleCommand(cmd string) (resp string, err error) {
 		}
 		key := sp[1]
 		resp = handleGet(key)
+	} else if cmd == "keys" {
+		resp = handleKeys()
 	} else {
 		return "", errors.New("unknown command")
 	}
@@ -101,4 +103,12 @@ func handleGet(key string) string {
 
 func handleSet(key, value string) {
 	store[key] = value
+}
+
+func handleKeys() string {
+	var keys []string
+	for key := range store {
+		keys = append(keys, key) 
+	}
+	return strings.Join(keys, " ")
 }

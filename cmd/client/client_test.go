@@ -110,4 +110,16 @@ func TestGet(t *testing.T) {
 	} else {
 		assert.Equal(t, "value", resp)
 	}
+
+	// keys
+
+	if err := cli.Send("keys"); err != nil {
+		t.Fatal(err)
+	}
+
+	if resp, err := cli.Recv(); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.Equal(t, "key", resp)
+	}
 }
