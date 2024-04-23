@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 )
 
 const LineSuffix = "\t\n"
@@ -15,7 +16,7 @@ const LineSuffix = "\t\n"
 var (
 	port  = 63790
 	host  = "0.0.0.0"
-	store = map[string]string{}
+	store = sync.Map{}
 )
 
 func main() {
@@ -98,17 +99,25 @@ func handlePing() string {
 }
 
 func handleGet(key string) string {
-	return store[key]
+	if v, ok := store.Load(key); ok {
+		if val, ok := v.(string); ok {
+			return val
+		} else {
+			return ""
+		}
+	}
+	return ""
 }
 
 func handleSet(key, value string) {
-	store[key] = value
+	store.Store(key, value)
 }
 
 func handleKeys() string {
 	var keys []string
-	for key := range store {
-		keys = append(keys, key) 
-	}
+	store.Range(func(key, value interface{}) bool {
+		keys = append(keys, key.(string))
+		return true
+	})
 	return strings.Join(keys, " ")
 }
