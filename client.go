@@ -6,8 +6,6 @@ import (
 	"strings"
 )
 
-const LineSuffix = "\t\n"
-
 type Client struct {
 	conn *net.TCPConn
 }
@@ -24,13 +22,12 @@ func NewClient(serverAddr string) (*Client, error) {
 	return &Client{conn}, nil
 }
 
-
-func (c *Client) Request(s string) (string, error ){
-	if err := c.Send(s); err != nil{
+func (c *Client) Request(s string) (string, error) {
+	if err := c.Send(s); err != nil {
 		return "", fmt.Errorf("send failed: %w", err)
 	}
-	
-	if resp, err := c.Recv(); err != nil {
+
+	if resp, err := c.Receive(); err != nil {
 		return "", fmt.Errorf("receive failed: %w", err)
 	} else {
 		return resp, nil
@@ -42,7 +39,7 @@ func (c *Client) Send(s string) error {
 	return err
 }
 
-func (c *Client) Recv() (string, error) {
+func (c *Client) Receive() (string, error) {
 	reply := make([]byte, 1024)
 
 	if n, err := c.conn.Read(reply); err != nil {
