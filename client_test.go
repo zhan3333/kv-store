@@ -1,6 +1,8 @@
 package kvstore_test
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,12 +16,30 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	// start test server
+	server := kvstore.New(serverAddr)
+	ctx, cancel := context.WithCancel(context.Background())
+	startedCh := make(chan struct{})
+	go func() {
+		if err := server.Run(ctx, &kvstore.ServerOptions{StartedCh: startedCh}); err != nil {
+			panic(err)
+		} else {
+			fmt.Println("Server stopped")
+		}
+	}()
+
+	<-startedCh
+
+	// new client
 	var err error
 	cli, err = kvstore.NewClient(serverAddr)
 	if err != nil {
 		panic(err)
 	}
+
 	m.Run()
+
+	cancel()
 }
 
 func TestPing(t *testing.T) {

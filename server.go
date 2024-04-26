@@ -19,32 +19,41 @@ type Server struct {
 	store sync.Map
 }
 
+type ServerOptions struct {
+	StartedCh chan struct{}
+}
+
 func New(addr string) *Server {
 	return &Server{addr: addr, store: sync.Map{}}
 }
 
-func (s *Server) Run(ctx context.Context) error {
+func (s *Server) Run(ctx context.Context, options *ServerOptions) error {
 	listener, err := net.Listen("tcp", s.addr)
 	if err != nil {
 		return fmt.Errorf("new listen failed: %w", err)
+	}
+	if options != nil {
+		if options.StartedCh != nil {
+			options.StartedCh <- struct{}{}
+		}
 	}
 
 	defer func() { _ = listener.Close() }()
 
 	log.Printf("Server started at %s", s.addr)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			conn, err := listener.Accept()
-			if err != nil {
-				return fmt.Errorf("accept connection failed: %w", err)
-			}
+	go func() {
+		<-ctx.Done()
+		_ = listener.Close()
+	}()
 
-			go s.handleLine(conn)
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			return fmt.Errorf("accept connection failed: %w", err)
 		}
+
+		go s.handleLine(conn)
 	}
 }
 
