@@ -1,13 +1,14 @@
 package kvstore
 
 import (
-	"fmt"
+	"context"
 	"net"
 	"strings"
 )
 
 type Client struct {
 	conn *net.TCPConn
+	cmdable
 }
 
 func NewClient(serverAddr string) (*Client, error) {
@@ -19,30 +20,35 @@ func NewClient(serverAddr string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{conn}, nil
+	cli := &Client{conn: conn}
+	cli.cmdable = cli.process
+	return cli, nil
 }
 
-func (c *Client) Request(s string) (string, error) {
-	if err := c.Send(s); err != nil {
-		return "", fmt.Errorf("send failed: %w", err)
+func (c *Client) process(ctx context.Context, cmd Cmder) error {
+	if err := send(c.conn, cmd.String()); err != nil {
+		cmd.SetErr(err)
+		return err
 	}
 
-	if resp, err := c.Receive(); err != nil {
-		return "", fmt.Errorf("receive failed: %w", err)
+	if resp, err := receive(c.conn); err != nil {
+		cmd.SetErr(err)
+		return err
 	} else {
-		return resp, nil
+		cmd.setReplay(resp)
+		return nil
 	}
 }
 
-func (c *Client) Send(s string) error {
-	_, err := c.conn.Write([]byte(s + LineSuffix))
+func send(conn *net.TCPConn, s string) error {
+	_, err := conn.Write([]byte(s + LineSuffix))
 	return err
 }
 
-func (c *Client) Receive() (string, error) {
+func receive(conn *net.TCPConn) (string, error) {
 	reply := make([]byte, 1024)
 
-	if n, err := c.conn.Read(reply); err != nil {
+	if n, err := conn.Read(reply); err != nil {
 		return "", err
 	} else {
 		return strings.TrimSuffix(string(reply[:n]), LineSuffix), nil

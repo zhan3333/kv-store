@@ -43,10 +43,10 @@ func TestMain(m *testing.M) {
 }
 
 func TestPing(t *testing.T) {
-	if resp, err := cli.Request("ping"); err != nil {
+	if val, err := cli.Ping(context.Background()).Result(); err != nil {
 		t.Fatal(err)
 	} else {
-		assert.Equal(t, "pong", resp)
+		assert.Equal(t, "pong", val)
 	}
 }
 
@@ -55,21 +55,21 @@ func TestSetGet(t *testing.T) {
 	defer func() {
 		t.Logf("used: %s", time.Since(start))
 	}()
-	if resp, err := cli.Request("set key value"); err != nil {
+	if val, err := cli.Set(context.Background(), "key", "val").Result(); err != nil {
 		t.Fatal(err)
 	} else {
-		assert.Equal(t, "OK", resp)
+		assert.Equal(t, "OK", val)
 	}
 
-	if resp, err := cli.Request("get key"); err != nil {
+	if val, err := cli.Get(context.Background(), "key").Result(); err != nil {
 		t.Fatal(err)
 	} else {
-		assert.Equal(t, "value", resp)
+		assert.Equal(t, "val", val)
 	}
 
-	if resp, err := cli.Request("keys"); err != nil {
+	if val, err := cli.Keys(context.Background()).Result(); err != nil {
 		t.Fatal(err)
 	} else {
-		assert.Equal(t, "key", resp)
+		assert.Equal(t, []string{"key"}, val)
 	}
 }
