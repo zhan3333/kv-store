@@ -3,24 +3,32 @@ package kvstore
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 const LineSuffix = "\t\n"
 
 type Server struct {
-	addr  string
-	store sync.Map
+	addr           string
+	store          sync.Map
+	backupFile     string
+	backupInterval time.Duration
 }
 
 type ServerOptions struct {
-	StartedCh chan struct{}
+	StartedCh      chan struct{}
+	Backup         bool
+	BackupPath     string
+	BackupInterval time.Duration
 }
 
 func New(addr string) *Server {
@@ -35,6 +43,17 @@ func (s *Server) Run(ctx context.Context, options *ServerOptions) error {
 	if options != nil {
 		if options.StartedCh != nil {
 			options.StartedCh <- struct{}{}
+		}
+		if options.Backup {
+			if options.BackupPath == "" {
+				options.BackupPath = "."
+			}
+			s.backupFile = fmt.Sprintf("%s/backup.json", options.BackupPath)
+			if options.BackupInterval < 1*time.Second {
+				options.BackupInterval = 1 * time.Second
+			}
+			s.backupInterval = options.BackupInterval
+			s.AsyncBackupRun()
 		}
 	}
 
@@ -55,6 +74,71 @@ func (s *Server) Run(ctx context.Context, options *ServerOptions) error {
 
 		go s.handleLine(conn)
 	}
+}
+
+func (s *Server) ReadBackup() error {
+	f, err := os.OpenFile(s.backupFile, os.O_RDONLY, 0644)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("open backup.json failed: %s", err)
+	}
+	b, err := io.ReadAll(f)
+	if err != nil {
+		return fmt.Errorf("read backup.json failed: %s", err)
+	}
+	if len(b) > 0 {
+		store := map[string]any{}
+		err = json.Unmarshal(b, &store)
+		if err != nil {
+			return fmt.Errorf("unmarshal backup.json failed: %s", err)
+		}
+		for k, v := range store {
+			s.store.Store(k, v)
+		}
+	}
+	return nil
+}
+
+func (s *Server) WriteBackup() error {
+	f, err := os.OpenFile(s.backupFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("open backup.json failed: %s", err)
+	}
+	defer func() { _ = f.Close() }()
+	store := map[string]any{}
+	s.store.Range(func(k, v any) bool {
+		store[k.(string)] = v
+		return true
+	})
+	b, err := json.Marshal(store)
+	if err != nil {
+		return fmt.Errorf("marshal store failed: %s", err)
+	}
+	_, err = f.Write(b)
+	if err != nil {
+		return fmt.Errorf("write backup.json failed: %s", err)
+	}
+	return nil
+}
+
+func (s *Server) AsyncBackupRun() {
+	// load from backup
+	if err := s.ReadBackup(); err != nil {
+		log.Printf("read backup failed: %s", err)
+	}
+	go func() {
+		t := time.NewTicker(s.backupInterval)
+		for {
+			<-t.C
+			//fmt.Println("backup...")
+			if err := s.WriteBackup(); err != nil {
+				log.Printf("async backup failed: %s", err)
+			}
+			//fmt.Println("backup done")
+		}
+	}()
 }
 
 func (s *Server) handleLine(conn net.Conn) {

@@ -11,6 +11,7 @@ Design and implement a distributed k-v storage system based on Go language
 ## Todo list
 
 - [x] The TCP port handles client store/read commands
+- [x] Support backup
 - [ ] RESP3 protocol implement: https://github.com/redis/redis-specifications/blob/master/protocol/RESP3.md
 - [ ] Support Redis Client connect
 - [ ] Support more Redis commands
