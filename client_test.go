@@ -61,6 +61,12 @@ func TestSetGet(t *testing.T) {
 		assert.Equal(t, "OK", val)
 	}
 
+	if val, err := cli.Set(context.Background(), "key1", "val1", "key2", "val2").Result(); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.Equal(t, "OK", val)
+	}
+
 	if val, err := cli.Get(context.Background(), "key").Result(); err != nil {
 		t.Fatal(err)
 	} else {
@@ -70,6 +76,6 @@ func TestSetGet(t *testing.T) {
 	if val, err := cli.Keys(context.Background()).Result(); err != nil {
 		t.Fatal(err)
 	} else {
-		assert.Equal(t, []string{"key"}, val)
+		assert.Equal(t, []string{"key", "key1", "key2"}, val)
 	}
 }

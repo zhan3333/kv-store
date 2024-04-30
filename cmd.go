@@ -2,6 +2,7 @@ package kvstore
 
 import (
 	"context"
+	"errors"
 	"strings"
 )
 
@@ -95,32 +96,8 @@ func (s *StringCmd) setReplay(resp string) {
 	s.val = resp
 }
 
-func (c cmdable) Ping(ctx context.Context) *StatusCmd {
-	cmd := NewStatusCmd(ctx, "ping")
-	_ = c(ctx, cmd)
-
-	return cmd
-}
-
-func (c cmdable) Set(ctx context.Context, key string, val string) *StringCmd {
-	cmd := NewStringCmd(ctx, "set", key, val)
-	_ = c(ctx, cmd)
-
-	return cmd
-}
-
-func (c cmdable) Get(ctx context.Context, key string) *StringCmd {
-	cmd := NewStringCmd(ctx, "get", key)
-	_ = c(ctx, cmd)
-
-	return cmd
-}
-
-func (c cmdable) Keys(ctx context.Context) *StringSliceCmd {
-	cmd := NewStringSliceCmd(ctx, "keys")
-	_ = c(ctx, cmd)
-
-	return cmd
+func (s *StringCmd) setArgs(args ...string) {
+	s.args = args
 }
 
 type StringSliceCmd struct {
@@ -145,4 +122,40 @@ func (s *StringSliceCmd) setReplay(resp string) {
 
 func (s *StringSliceCmd) Result() ([]string, error) {
 	return s.vals, s.err
+}
+
+func (c cmdable) Ping(ctx context.Context) *StatusCmd {
+	cmd := NewStatusCmd(ctx, "ping")
+	_ = c(ctx, cmd)
+
+	return cmd
+}
+
+func (c cmdable) Set(ctx context.Context, kvs ...string) *StringCmd {
+	cmd := NewStringCmd(ctx, "set")
+
+	if len(kvs) == 0 || len(kvs)%2 != 0 {
+		cmd.SetErr(errors.New("invalid kvs number"))
+	}
+
+	args := []string{"set"}
+	args = append(args, kvs...)
+	cmd.setArgs(args...)
+	_ = c(ctx, cmd)
+
+	return cmd
+}
+
+func (c cmdable) Get(ctx context.Context, key string) *StringCmd {
+	cmd := NewStringCmd(ctx, "get", key)
+	_ = c(ctx, cmd)
+
+	return cmd
+}
+
+func (c cmdable) Keys(ctx context.Context) *StringSliceCmd {
+	cmd := NewStringSliceCmd(ctx, "keys")
+	_ = c(ctx, cmd)
+
+	return cmd
 }

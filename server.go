@@ -184,11 +184,14 @@ func (s *Server) handleCommand(cmd string) (resp string, err error) {
 		resp = s.handlePing()
 	} else if strings.HasPrefix(cmd, "set") {
 		sp := strings.Split(cmd, " ")
-		if len(sp) != 3 {
+		if len(sp) < 3 || len(sp)%2 != 1 {
 			return "", errors.New("invalid command")
 		}
-		key, val := sp[1], sp[2]
-		s.handleSet(key, val)
+		m := map[string]string{}
+		for i := 1; i < len(sp); i += 2 {
+			m[sp[i]] = sp[i+1]
+		}
+		s.handleSet(m)
 	} else if strings.HasPrefix(cmd, "get") {
 		sp := strings.Split(cmd, " ")
 		if len(sp) != 2 {
@@ -219,8 +222,10 @@ func (s *Server) handleGet(key string) string {
 	return ""
 }
 
-func (s *Server) handleSet(key, value string) {
-	s.store.Store(key, value)
+func (s *Server) handleSet(m map[string]string) {
+	for k, v := range m {
+		s.store.Store(k, v)
+	}
 }
 
 func (s *Server) handleKeys() string {
