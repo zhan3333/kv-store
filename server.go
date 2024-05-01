@@ -21,7 +21,9 @@ type Server struct {
 	addr           string
 	store          sync.Map
 	backupFile     string
+	aofFile        *os.File
 	backupInterval time.Duration
+	BackupType     BackupType
 }
 
 type ServerOptions struct {
@@ -29,7 +31,15 @@ type ServerOptions struct {
 	Backup         bool
 	BackupPath     string
 	BackupInterval time.Duration
+	BackupType     BackupType
 }
+
+type BackupType string
+
+var (
+	BackupAOF BackupType = "aof"
+	BackupRDB BackupType = "rdb"
+)
 
 func New(addr string) *Server {
 	return &Server{addr: addr, store: sync.Map{}}
@@ -48,12 +58,29 @@ func (s *Server) Run(ctx context.Context, options *ServerOptions) error {
 			if options.BackupPath == "" {
 				options.BackupPath = "."
 			}
-			s.backupFile = fmt.Sprintf("%s/backup.json", options.BackupPath)
+			if options.BackupType == "" {
+				options.BackupType = BackupRDB
+			}
+			if options.BackupType == BackupRDB {
+				s.backupFile = fmt.Sprintf("%s/backup-rdb.json", options.BackupPath)
+			} else {
+				s.backupFile = fmt.Sprintf("%s/backup-aof.txt", options.BackupPath)
+			}
 			if options.BackupInterval < 1*time.Second {
 				options.BackupInterval = 1 * time.Second
 			}
 			s.backupInterval = options.BackupInterval
-			s.AsyncBackupRun()
+			s.BackupType = options.BackupType
+			if s.BackupType == BackupRDB {
+				s.AsyncBackupRun()
+			} else {
+				if err := s.openAOFFile(); err != nil {
+					return fmt.Errorf("open aof file failed: %w", err)
+				}
+				if err := s.recoverAOF(); err != nil {
+					return fmt.Errorf("recover aof file failed: %w", err)
+				}
+			}
 		}
 	}
 
@@ -74,6 +101,50 @@ func (s *Server) Run(ctx context.Context, options *ServerOptions) error {
 
 		go s.handleLine(conn)
 	}
+}
+
+func (s *Server) openAOFFile() error {
+	f, err := os.OpenFile(s.backupFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("open %s failed: %s", s.backupFile, err)
+	}
+	s.aofFile = f
+	return nil
+}
+
+func (s *Server) recoverAOF() error {
+	reader := bufio.NewReader(s.aofFile)
+
+	recoverCmdCount := 0
+	for {
+		cmd, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return fmt.Errorf("read aof file line failed: %w", err)
+		}
+		if cmd == "" || cmd == "\n" {
+			continue
+		}
+
+		if _, err := s.handleCommand(cmd, false); err != nil {
+			return fmt.Errorf("handle command %s failed: %w", cmd, err)
+		}
+		recoverCmdCount++
+	}
+
+	log.Printf("Recovered %d commands", recoverCmdCount)
+
+	return nil
+}
+
+func (s *Server) appendAOF(cmd string) error {
+	_, err := s.aofFile.WriteString(fmt.Sprintf("%s\n", cmd))
+	if err != nil {
+		return fmt.Errorf("append aof failed: %w", err)
+	}
+	return nil
 }
 
 func (s *Server) ReadBackup() error {
@@ -160,7 +231,7 @@ func (s *Server) handleLine(conn net.Conn) {
 		}
 		cmd = strings.TrimSuffix(cmd, LineSuffix)
 		fmt.Printf("Message incoming: %s\n", cmd)
-		if resp, err := s.handleCommand(cmd); err != nil {
+		if resp, err := s.handleCommand(cmd, s.BackupType == BackupAOF); err != nil {
 			_, err2 := conn.Write([]byte(fmt.Sprintf("Error: %s%s", err, LineSuffix)))
 			if err2 != nil {
 				log.Printf("Error writing message: %s", err2)
@@ -179,7 +250,14 @@ func (s *Server) handleLine(conn net.Conn) {
 	}
 }
 
-func (s *Server) handleCommand(cmd string) (resp string, err error) {
+func (s *Server) handleCommand(cmd string, aof bool) (resp string, err error) {
+	defer func() {
+		if err == nil && aof {
+			if err := s.appendAOF(cmd); err != nil {
+				log.Printf("appand aof file failed: %s", err)
+			}
+		}
+	}()
 	if cmd == "ping" {
 		resp = s.handlePing()
 	} else if strings.HasPrefix(cmd, "set") {
