@@ -1,7 +1,8 @@
-package kvstore
+package client
 
 import (
 	"context"
+	"github.com/zhan3333/kystore"
 	"net"
 	"strings"
 )
@@ -41,7 +42,7 @@ func (c *Client) process(ctx context.Context, cmd Cmder) error {
 }
 
 func send(conn *net.TCPConn, s string) error {
-	_, err := conn.Write([]byte(s + LineSuffix))
+	_, err := conn.Write([]byte(s + kvstore.LineSuffix))
 	return err
 }
 
@@ -51,6 +52,6 @@ func receive(conn *net.TCPConn) (string, error) {
 	if n, err := conn.Read(reply); err != nil {
 		return "", err
 	} else {
-		return strings.TrimSuffix(string(reply[:n]), LineSuffix), nil
+		return strings.TrimSuffix(string(reply[:n]), kvstore.LineSuffix), nil
 	}
 }

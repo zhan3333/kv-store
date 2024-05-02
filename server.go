@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -312,5 +313,6 @@ func (s *Server) handleKeys() string {
 		keys = append(keys, key.(string))
 		return true
 	})
+	sort.Strings(keys)
 	return strings.Join(keys, " ")
 }

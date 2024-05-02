@@ -1,8 +1,9 @@
-package kvstore_test
+package client_test
 
 import (
 	"context"
 	"fmt"
+	"github.com/zhan3333/kystore/client"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 
 var (
 	serverAddr = "localhost:63790"
-	cli        *kvstore.Client
+	cli        *client.Client
 )
 
 func TestMain(m *testing.M) {
@@ -32,7 +33,7 @@ func TestMain(m *testing.M) {
 
 	// new client
 	var err error
-	cli, err = kvstore.NewClient(serverAddr)
+	cli, err = client.NewClient(serverAddr)
 	if err != nil {
 		panic(err)
 	}
