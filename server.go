@@ -251,38 +251,39 @@ func (s *Server) handleLine(conn net.Conn) {
 	}
 }
 
-func (s *Server) handleCommand(cmd string, aof bool) (resp string, err error) {
+func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 	defer func() {
 		if err == nil && aof {
-			if err := s.appendAOF(cmd); err != nil {
+			if err := s.appendAOF(c); err != nil {
 				log.Printf("appand aof file failed: %s", err)
 			}
 		}
 	}()
-	if cmd == "ping" {
+	cmd := NewCmd(c)
+
+	switch cmd.Name {
+	case "ping":
 		resp = s.handlePing()
-	} else if strings.HasPrefix(cmd, "set") {
-		sp := strings.Split(cmd, " ")
-		if len(sp) < 3 || len(sp)%2 != 1 {
-			return "", errors.New("invalid command")
+	case "get":
+		if len(cmd.Args) != 1 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		resp = s.handleGet(cmd.Args[0])
+	case "set":
+		if len(cmd.Args) < 2 || len(cmd.Args)%2 != 0 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
 		}
 		m := map[string]string{}
-		for i := 1; i < len(sp); i += 2 {
-			m[sp[i]] = sp[i+1]
+		for i := 0; i < len(cmd.Args); i += 2 {
+			m[cmd.Args[i]] = cmd.Args[i+1]
 		}
 		s.handleSet(m)
-	} else if strings.HasPrefix(cmd, "get") {
-		sp := strings.Split(cmd, " ")
-		if len(sp) != 2 {
-			return "", errors.New("invalid command")
-		}
-		key := sp[1]
-		resp = s.handleGet(key)
-	} else if cmd == "keys" {
+	case "keys":
 		resp = s.handleKeys()
-	} else {
-		return "", errors.New("unknown command")
+	default:
+		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
+
 	return resp, nil
 }
 
