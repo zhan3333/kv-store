@@ -280,6 +280,11 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 		s.handleSet(m)
 	case "keys":
 		resp = s.handleKeys()
+	case "del":
+		if len(cmd.Args) < 1 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		s.handleDel(cmd.Args...)
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
@@ -305,6 +310,12 @@ func (s *Server) handleGet(key string) string {
 func (s *Server) handleSet(m map[string]string) {
 	for k, v := range m {
 		s.store.Store(k, v)
+	}
+}
+
+func (s *Server) handleDel(keys ...string) {
+	for _, key := range keys {
+		s.store.Delete(key)
 	}
 }
 

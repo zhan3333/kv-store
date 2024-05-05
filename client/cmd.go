@@ -100,6 +100,10 @@ func (s *StringCmd) setArgs(args ...string) {
 	s.args = args
 }
 
+func (s *StringCmd) appendArgs(args ...string) {
+	s.args = append(s.args, args...)
+}
+
 type StringSliceCmd struct {
 	baseCmd
 
@@ -138,9 +142,7 @@ func (c cmdable) Set(ctx context.Context, kvs ...string) *StringCmd {
 		cmd.SetErr(errors.New("invalid kvs number"))
 	}
 
-	args := []string{"set"}
-	args = append(args, kvs...)
-	cmd.setArgs(args...)
+	cmd.appendArgs(kvs...)
 	_ = c(ctx, cmd)
 
 	return cmd
@@ -155,6 +157,19 @@ func (c cmdable) Get(ctx context.Context, key string) *StringCmd {
 
 func (c cmdable) Keys(ctx context.Context) *StringSliceCmd {
 	cmd := NewStringSliceCmd(ctx, "keys")
+	_ = c(ctx, cmd)
+
+	return cmd
+}
+
+func (c cmdable) Del(ctx context.Context, keys ...string) *StringCmd {
+	cmd := NewStringCmd(ctx, "del")
+	if len(keys) == 0 {
+		cmd.SetErr(errors.New("invalid keys number"))
+		return cmd
+	}
+	cmd.appendArgs(keys...)
+
 	_ = c(ctx, cmd)
 
 	return cmd
