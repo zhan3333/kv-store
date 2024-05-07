@@ -86,3 +86,34 @@ func TestSetGet(t *testing.T) {
 		assert.Equal(t, "OK", val)
 	}
 }
+
+func TestLPush(t *testing.T) {
+	start := time.Now()
+	defer func() {
+		t.Logf("used: %s", time.Since(start))
+	}()
+	if val, err := cli.LPush(context.Background(), "lpushkey", "val", "val1").Result(); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.Equal(t, "OK", val)
+	}
+
+	if val, err := cli.Get(context.Background(), "lpushkey").Result(); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.Equal(t, "val1,val", val)
+	}
+
+	// left push
+	if val, err := cli.LPush(context.Background(), "lpushkey", "val2", "val3").Result(); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.Equal(t, "OK", val)
+	}
+
+	if val, err := cli.Get(context.Background(), "lpushkey").Result(); err != nil {
+		t.Fatal(err)
+	} else {
+		assert.Equal(t, "val3,val2,val1,val", val)
+	}
+}

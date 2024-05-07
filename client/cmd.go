@@ -174,3 +174,23 @@ func (c cmdable) Del(ctx context.Context, keys ...string) *StringCmd {
 
 	return cmd
 }
+
+func (c cmdable) LPush(ctx context.Context, key string, values ...string) *StringCmd {
+	cmd := NewStringCmd(ctx, "lpush")
+
+	if key == "" {
+		cmd.SetErr(errors.New("invalid key"))
+		return cmd
+	}
+	if len(values) == 0 {
+		cmd.SetErr(errors.New("invalid values number"))
+		return cmd
+	}
+
+	cmd.appendArgs(key)
+	cmd.appendArgs(values...)
+
+	_ = c(ctx, cmd)
+
+	return cmd
+}

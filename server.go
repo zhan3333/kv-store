@@ -285,6 +285,11 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
 		}
 		s.handleDel(cmd.Args...)
+	case "lpush":
+		if len(cmd.Args) < 2 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		s.handleLPush(cmd.Args[0], cmd.Args[1:]...)
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
@@ -317,6 +322,23 @@ func (s *Server) handleDel(keys ...string) {
 	for _, key := range keys {
 		s.store.Delete(key)
 	}
+}
+func (s *Server) handleLPush(key string, values ...string) {
+	val, _ := s.store.LoadOrStore(key, "")
+	valStr := val.(string)
+
+	// reverse values
+	for i := 0; i < len(values)/2; i++ {
+		values[i], values[len(values)-i-1] = values[len(values)-i-1], values[i]
+	}
+
+	if valStr == "" {
+		valStr = strings.Join(values, ",")
+	} else {
+		values = append(values, valStr)
+		valStr = strings.Join(values, ",")
+	}
+	s.store.Store(key, valStr)
 }
 
 func (s *Server) handleKeys() string {
