@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 )
 
@@ -121,7 +122,11 @@ func NewStringSliceCmd(ctx context.Context, args ...string) *StringSliceCmd {
 }
 
 func (s *StringSliceCmd) setReplay(resp string) {
-	s.vals = strings.Split(resp, " ")
+	s.vals = strings.Split(resp, ",")
+}
+
+func (s *StringSliceCmd) appendArgs(args ...string) {
+	s.args = append(s.args, args...)
 }
 
 func (s *StringSliceCmd) Result() ([]string, error) {
@@ -189,6 +194,26 @@ func (c cmdable) LPush(ctx context.Context, key string, values ...string) *Strin
 
 	cmd.appendArgs(key)
 	cmd.appendArgs(values...)
+
+	_ = c(ctx, cmd)
+
+	return cmd
+}
+
+func (c cmdable) LPop(ctx context.Context, key string, n int) *StringSliceCmd {
+	cmd := NewStringSliceCmd(ctx, "lpop")
+
+	if key == "" {
+		cmd.SetErr(errors.New("invalid key"))
+		return cmd
+	}
+	if n < 1 {
+		cmd.SetErr(errors.New("invalid n value"))
+		return cmd
+	}
+
+	cmd.appendArgs(key)
+	cmd.appendArgs(strconv.Itoa(n))
 
 	_ = c(ctx, cmd)
 

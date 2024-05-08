@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -239,9 +240,6 @@ func (s *Server) handleLine(conn net.Conn) {
 				return
 			}
 		} else {
-			if resp == "" {
-				resp = "OK"
-			}
 			_, err2 := conn.Write([]byte(fmt.Sprintf("%s%s", resp, LineSuffix)))
 			if err2 != nil {
 				log.Printf("Error writing message: %s", err2)
@@ -278,6 +276,7 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 			m[cmd.Args[i]] = cmd.Args[i+1]
 		}
 		s.handleSet(m)
+		resp = "OK"
 	case "keys":
 		resp = s.handleKeys()
 	case "del":
@@ -285,11 +284,25 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
 		}
 		s.handleDel(cmd.Args...)
+		resp = "OK"
 	case "lpush":
 		if len(cmd.Args) < 2 {
 			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
 		}
 		s.handleLPush(cmd.Args[0], cmd.Args[1:]...)
+		resp = "OK"
+	case "lpop":
+		if len(cmd.Args) < 1 || len(cmd.Args) > 2 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		var n = 1
+		if len(cmd.Args) == 2 {
+			n, err = strconv.Atoi(cmd.Args[1])
+			if err != nil || n < 1 {
+				return "", fmt.Errorf("invalid n value: %s", cmd.FullName)
+			}
+		}
+		resp = s.handleLPop(cmd.Args[0], n)
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
@@ -323,6 +336,7 @@ func (s *Server) handleDel(keys ...string) {
 		s.store.Delete(key)
 	}
 }
+
 func (s *Server) handleLPush(key string, values ...string) {
 	val, _ := s.store.LoadOrStore(key, "")
 	valStr := val.(string)
@@ -341,6 +355,24 @@ func (s *Server) handleLPush(key string, values ...string) {
 	s.store.Store(key, valStr)
 }
 
+func (s *Server) handleLPop(key string, n int) string {
+	val, _ := s.store.LoadOrStore(key, "")
+	valStr := val.(string)
+
+	if valStr == "" {
+		return ""
+	} else {
+		values := strings.Split(valStr, ",")
+		if len(values) <= n {
+			s.store.Store(key, "")
+			return strings.Join(values, ",")
+		} else {
+			s.store.Store(key, strings.Join(values[n:], ","))
+			return strings.Join(values[0:n], ",")
+		}
+	}
+}
+
 func (s *Server) handleKeys() string {
 	var keys []string
 	s.store.Range(func(key, value interface{}) bool {
@@ -348,5 +380,5 @@ func (s *Server) handleKeys() string {
 		return true
 	})
 	sort.Strings(keys)
-	return strings.Join(keys, " ")
+	return strings.Join(keys, ",")
 }
