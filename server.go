@@ -303,6 +303,11 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 			}
 		}
 		resp = s.handleLPop(cmd.Args[0], n)
+	case "llen":
+		if len(cmd.Args) != 1 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		resp = s.handleLLen(cmd.Args[0])
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
@@ -371,6 +376,15 @@ func (s *Server) handleLPop(key string, n int) string {
 			return strings.Join(values[0:n], ",")
 		}
 	}
+}
+func (s *Server) handleLLen(key string) string {
+	val, _ := s.store.LoadOrStore(key, "")
+	valStr := val.(string)
+	if len(valStr) == 0 {
+		return "0"
+	}
+
+	return strconv.Itoa(len(strings.Split(valStr, ",")))
 }
 
 func (s *Server) handleKeys() string {

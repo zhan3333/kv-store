@@ -92,6 +92,14 @@ func TestList(t *testing.T) {
 	defer func() {
 		t.Logf("used: %s", time.Since(start))
 	}()
+	t.Run("llen", func(t *testing.T) {
+		if val, err := cli.LLen(context.Background(), "lpushkey").Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, 0, val)
+		}
+	})
+
 	t.Run("lpush", func(t *testing.T) {
 		if val, err := cli.LPush(context.Background(), "lpushkey", "val", "val1").Result(); err != nil {
 			t.Fatal(err)
@@ -103,6 +111,12 @@ func TestList(t *testing.T) {
 			t.Fatal(err)
 		} else {
 			assert.Equal(t, "val1,val", val)
+		}
+
+		if val, err := cli.LLen(context.Background(), "lpushkey").Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, 2, val)
 		}
 	})
 
@@ -134,6 +148,12 @@ func TestList(t *testing.T) {
 		} else {
 			assert.Equal(t, "val2,val1,val", val)
 		}
+
+		if val, err := cli.LLen(context.Background(), "lpushkey").Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, 3, val)
+		}
 	})
 
 	t.Run("lpop two values", func(t *testing.T) {
@@ -163,6 +183,12 @@ func TestList(t *testing.T) {
 			t.Fatal(err)
 		} else {
 			assert.Equal(t, "", val)
+		}
+
+		if val, err := cli.LLen(context.Background(), "lpushkey").Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, 0, val)
 		}
 	})
 }

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -35,7 +36,10 @@ var (
 	_ Cmder = (*StatusCmd)(nil)
 	_ Cmder = (*StringCmd)(nil)
 	_ Cmder = (*StringSliceCmd)(nil)
+	_ Cmder = (*IntCmd)(nil)
 )
+
+/* status command*/
 
 type StatusCmd struct {
 	baseCmd
@@ -73,6 +77,8 @@ func NewStatusCmd(ctx context.Context, args ...string) *StatusCmd {
 	}
 }
 
+/* string command*/
+
 type StringCmd struct {
 	baseCmd
 
@@ -105,20 +111,22 @@ func (s *StringCmd) appendArgs(args ...string) {
 	s.args = append(s.args, args...)
 }
 
+/* string slice command*/
+
 type StringSliceCmd struct {
 	baseCmd
 
 	vals []string
 }
 
-func (s *StringSliceCmd) String() string {
-	return strings.Join(s.args, " ")
-}
-
 func NewStringSliceCmd(ctx context.Context, args ...string) *StringSliceCmd {
 	return &StringSliceCmd{
 		baseCmd: baseCmd{ctx: ctx, args: args},
 	}
+}
+
+func (s *StringSliceCmd) String() string {
+	return strings.Join(s.args, " ")
 }
 
 func (s *StringSliceCmd) setReplay(resp string) {
@@ -132,6 +140,39 @@ func (s *StringSliceCmd) appendArgs(args ...string) {
 func (s *StringSliceCmd) Result() ([]string, error) {
 	return s.vals, s.err
 }
+
+/* int command*/
+
+type IntCmd struct {
+	baseCmd
+
+	val int
+}
+
+func NewIntCmd(ctx context.Context, args ...string) *IntCmd {
+	return &IntCmd{
+		baseCmd: baseCmd{ctx: ctx, args: args},
+	}
+}
+
+func (i *IntCmd) String() string {
+	return strings.Join(i.args, " ")
+}
+
+func (i *IntCmd) setReplay(resp string) {
+	v, err := strconv.Atoi(resp)
+	if err != nil {
+		i.SetErr(fmt.Errorf("parse response %s failed: %w", resp, err))
+		return
+	}
+	i.val = v
+}
+
+func (i *IntCmd) Result() (int, error) {
+	return i.val, i.err
+}
+
+/* commands */
 
 func (c cmdable) Ping(ctx context.Context) *StatusCmd {
 	cmd := NewStatusCmd(ctx, "ping")
@@ -214,6 +255,19 @@ func (c cmdable) LPop(ctx context.Context, key string, n int) *StringSliceCmd {
 
 	cmd.appendArgs(key)
 	cmd.appendArgs(strconv.Itoa(n))
+
+	_ = c(ctx, cmd)
+
+	return cmd
+}
+
+func (c cmdable) LLen(ctx context.Context, key string) *IntCmd {
+	cmd := NewIntCmd(ctx, "llen", key)
+
+	if key == "" {
+		cmd.SetErr(errors.New("invalid key"))
+		return cmd
+	}
 
 	_ = c(ctx, cmd)
 
