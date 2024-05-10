@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	kvstore "github.com/zhan3333/kystore"
 )
@@ -189,6 +190,29 @@ func TestList(t *testing.T) {
 			t.Fatal(err)
 		} else {
 			assert.Equal(t, 0, val)
+		}
+	})
+}
+
+func TestCmdable_RPush(t *testing.T) {
+	t.Run("rpush", func(t *testing.T) {
+		var rpushKey = uuid.NewString()
+		if val, err := cli.RPush(context.Background(), rpushKey, "val", "val1").Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "OK", val)
+		}
+
+		if val, err := cli.Get(context.Background(), rpushKey).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "val,val1", val)
+		}
+
+		if val, err := cli.LLen(context.Background(), rpushKey).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, 2, val)
 		}
 	})
 }

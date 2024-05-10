@@ -291,6 +291,12 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 		}
 		s.handleLPush(cmd.Args[0], cmd.Args[1:]...)
 		resp = "OK"
+	case "rpush":
+		if len(cmd.Args) < 2 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		s.handleRPush(cmd.Args[0], cmd.Args[1:]...)
+		resp = "OK"
 	case "lpop":
 		if len(cmd.Args) < 1 || len(cmd.Args) > 2 {
 			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
@@ -356,6 +362,18 @@ func (s *Server) handleLPush(key string, values ...string) {
 	} else {
 		values = append(values, valStr)
 		valStr = strings.Join(values, ",")
+	}
+	s.store.Store(key, valStr)
+}
+
+func (s *Server) handleRPush(key string, values ...string) {
+	val, _ := s.store.LoadOrStore(key, "")
+	valStr := val.(string)
+
+	if valStr == "" {
+		valStr = strings.Join(values, ",")
+	} else {
+		valStr = fmt.Sprintf("%s,%s", valStr, strings.Join(values, ","))
 	}
 	s.store.Store(key, valStr)
 }
