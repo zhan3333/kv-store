@@ -277,6 +277,11 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 		}
 		s.handleSet(m)
 		resp = "OK"
+	case "exists":
+		if len(cmd.Args) != 1 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		resp = s.handleExists(cmd.Args[0])
 	case "keys":
 		resp = s.handleKeys()
 	case "del":
@@ -413,4 +418,13 @@ func (s *Server) handleKeys() string {
 	})
 	sort.Strings(keys)
 	return strings.Join(keys, ",")
+}
+
+func (s *Server) handleExists(key string) string {
+	_, ok := s.store.Load(key)
+	if ok {
+		return "true"
+	} else {
+		return "false"
+	}
 }

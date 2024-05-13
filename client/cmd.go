@@ -172,6 +172,36 @@ func (i *IntCmd) Result() (int, error) {
 	return i.val, i.err
 }
 
+/* bool command*/
+
+type BoolCmd struct {
+	baseCmd
+
+	val bool
+}
+
+func NewBoolCmd(ctx context.Context, args ...string) *BoolCmd {
+	return &BoolCmd{
+		baseCmd: baseCmd{ctx: ctx, args: args},
+	}
+}
+
+func (i *BoolCmd) String() string {
+	return strings.Join(i.args, " ")
+}
+
+func (i *BoolCmd) setReplay(resp string) {
+	if resp == "true" {
+		i.val = true
+	} else {
+		i.val = false
+	}
+}
+
+func (i *BoolCmd) Result() (bool, error) {
+	return i.val, i.err
+}
+
 /* commands */
 
 func (c cmdable) Ping(ctx context.Context) *StatusCmd {
@@ -283,6 +313,19 @@ func (c cmdable) LPop(ctx context.Context, key string, n int) *StringSliceCmd {
 
 func (c cmdable) LLen(ctx context.Context, key string) *IntCmd {
 	cmd := NewIntCmd(ctx, "llen", key)
+
+	if key == "" {
+		cmd.SetErr(errors.New("invalid key"))
+		return cmd
+	}
+
+	_ = c(ctx, cmd)
+
+	return cmd
+}
+
+func (c cmdable) Exists(ctx context.Context, key string) *BoolCmd {
+	cmd := NewBoolCmd(ctx, "exists", key)
 
 	if key == "" {
 		cmd.SetErr(errors.New("invalid key"))

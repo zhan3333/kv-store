@@ -216,3 +216,26 @@ func TestCmdable_RPush(t *testing.T) {
 		}
 	})
 }
+
+func TestExists(t *testing.T) {
+	t.Run("exists", func(t *testing.T) {
+		key := "existsKey"
+		assert.NoError(t, cli.Set(context.Background(), key, "val").Err())
+
+		if val, err := cli.Exists(context.Background(), key).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, true, val)
+		}
+	})
+
+	t.Run("no exists", func(t *testing.T) {
+		key := "noExistsKey"
+
+		if val, err := cli.Exists(context.Background(), key).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, false, val)
+		}
+	})
+}
