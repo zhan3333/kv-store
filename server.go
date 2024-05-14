@@ -283,7 +283,8 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 		}
 		resp = s.handleExists(cmd.Args[0])
 	case "keys":
-		resp = s.handleKeys()
+		keys := s.handleKeys()
+		resp = strings.Join(keys, ",")
 	case "del":
 		if len(cmd.Args) < 1 {
 			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
@@ -294,13 +295,17 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 		if len(cmd.Args) < 2 {
 			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
 		}
-		s.handleLPush(cmd.Args[0], cmd.Args[1:]...)
+		if err := s.handleLPush(cmd.Args[0], cmd.Args[1:]...); err != nil {
+			return "", err
+		}
 		resp = "OK"
 	case "rpush":
 		if len(cmd.Args) < 2 {
 			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
 		}
-		s.handleRPush(cmd.Args[0], cmd.Args[1:]...)
+		if err := s.handleRPush(cmd.Args[0], cmd.Args[1:]...); err != nil {
+			return "", err
+		}
 		resp = "OK"
 	case "lpop":
 		if len(cmd.Args) < 1 || len(cmd.Args) > 2 {
@@ -313,12 +318,20 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 				return "", fmt.Errorf("invalid n value: %s", cmd.FullName)
 			}
 		}
-		resp = s.handleLPop(cmd.Args[0], n)
+		if values, err := s.handleLPop(cmd.Args[0], n); err != nil {
+			return "", err
+		} else {
+			resp = strings.Join(values, ",")
+		}
 	case "llen":
 		if len(cmd.Args) != 1 {
 			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
 		}
-		resp = s.handleLLen(cmd.Args[0])
+		if l, err := s.handleLLen(cmd.Args[0]); err != nil {
+			return "", err
+		} else {
+			resp = strconv.Itoa(int(l))
+		}
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
@@ -332,9 +345,12 @@ func (s *Server) handlePing() string {
 
 func (s *Server) handleGet(key string) string {
 	if v, ok := s.store.Load(key); ok {
-		if val, ok := v.(string); ok {
-			return val
-		} else {
+		switch v.(type) {
+		case string:
+			return v.(string)
+		case *List:
+			return strings.Join(v.(*List).Values, ",")
+		default:
 			return ""
 		}
 	}
@@ -353,71 +369,61 @@ func (s *Server) handleDel(keys ...string) {
 	}
 }
 
-func (s *Server) handleLPush(key string, values ...string) {
-	val, _ := s.store.LoadOrStore(key, "")
-	valStr := val.(string)
-
-	// reverse values
-	for i := 0; i < len(values)/2; i++ {
-		values[i], values[len(values)-i-1] = values[len(values)-i-1], values[i]
-	}
-
-	if valStr == "" {
-		valStr = strings.Join(values, ",")
-	} else {
-		values = append(values, valStr)
-		valStr = strings.Join(values, ",")
-	}
-	s.store.Store(key, valStr)
-}
-
-func (s *Server) handleRPush(key string, values ...string) {
-	val, _ := s.store.LoadOrStore(key, "")
-	valStr := val.(string)
-
-	if valStr == "" {
-		valStr = strings.Join(values, ",")
-	} else {
-		valStr = fmt.Sprintf("%s,%s", valStr, strings.Join(values, ","))
-	}
-	s.store.Store(key, valStr)
-}
-
-func (s *Server) handleLPop(key string, n int) string {
-	val, _ := s.store.LoadOrStore(key, "")
-	valStr := val.(string)
-
-	if valStr == "" {
-		return ""
-	} else {
-		values := strings.Split(valStr, ",")
-		if len(values) <= n {
-			s.store.Store(key, "")
-			return strings.Join(values, ",")
-		} else {
-			s.store.Store(key, strings.Join(values[n:], ","))
-			return strings.Join(values[0:n], ",")
+func (s *Server) handleLPush(key string, values ...string) error {
+	raw, _ := s.store.LoadOrStore(key, &List{})
+	if val, ok := raw.(*List); ok {
+		for i := 0; i < len(values); i++ {
+			val.Values = append([]string{values[i]}, val.Values...)
 		}
+		return nil
+	} else {
+		return fmt.Errorf("invalid list type: %T", raw)
 	}
 }
-func (s *Server) handleLLen(key string) string {
+
+func (s *Server) handleRPush(key string, values ...string) error {
+	val, _ := s.store.LoadOrStore(key, &List{})
+	if val, ok := val.(*List); ok {
+		val.Values = append(val.Values, values...)
+		return nil
+	} else {
+		return fmt.Errorf("invalid list type: %T", val)
+	}
+}
+
+func (s *Server) handleLPop(key string, n int) ([]string, error) {
 	val, _ := s.store.LoadOrStore(key, "")
-	valStr := val.(string)
-	if len(valStr) == 0 {
-		return "0"
+	if val, ok := val.(*List); ok {
+		if len(val.Values) <= n {
+			values := val.Values
+			val.Values = []string{}
+			return values, nil
+		} else {
+			values := val.Values[:n]
+			val.Values = val.Values[n:]
+			return values, nil
+		}
+	} else {
+		return nil, fmt.Errorf("invalid list type: %T", val)
 	}
-
-	return strconv.Itoa(len(strings.Split(valStr, ",")))
+}
+func (s *Server) handleLLen(key string) (int64, error) {
+	val, _ := s.store.LoadOrStore(key, &List{})
+	if val, ok := val.(*List); ok {
+		return int64(len(val.Values)), nil
+	} else {
+		return 0, fmt.Errorf("invalid list type: %T", val)
+	}
 }
 
-func (s *Server) handleKeys() string {
+func (s *Server) handleKeys() []string {
 	var keys []string
-	s.store.Range(func(key, value interface{}) bool {
+	s.store.Range(func(key, _ any) bool {
 		keys = append(keys, key.(string))
 		return true
 	})
 	sort.Strings(keys)
-	return strings.Join(keys, ",")
+	return keys
 }
 
 func (s *Server) handleExists(key string) string {
