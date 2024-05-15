@@ -332,6 +332,24 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 		} else {
 			resp = strconv.Itoa(int(l))
 		}
+	case "lrange":
+		if len(cmd.Args) != 3 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		key := cmd.Args[0]
+		start, err := strconv.Atoi(cmd.Args[1])
+		if err != nil {
+			return "", fmt.Errorf("invalid start value: %s", cmd.Args[0])
+		}
+		stop, err := strconv.Atoi(cmd.Args[2])
+		if err != nil {
+			return "", fmt.Errorf("invalid stop value: %s", cmd.Args[1])
+		}
+		if l, err := s.handleLRange(key, start, stop); err != nil {
+			return "", err
+		} else {
+			resp = strings.Join(l, ",")
+		}
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
@@ -392,7 +410,7 @@ func (s *Server) handleRPush(key string, values ...string) error {
 }
 
 func (s *Server) handleLPop(key string, n int) ([]string, error) {
-	val, _ := s.store.LoadOrStore(key, "")
+	val, _ := s.store.LoadOrStore(key, &List{})
 	if val, ok := val.(*List); ok {
 		if len(val.Values) <= n {
 			values := val.Values
@@ -407,6 +425,28 @@ func (s *Server) handleLPop(key string, n int) ([]string, error) {
 		return nil, fmt.Errorf("invalid list type: %T", val)
 	}
 }
+
+func (s *Server) handleLRange(key string, start int, stop int) ([]string, error) {
+	val, _ := s.store.LoadOrStore(key, &List{})
+	if val, ok := val.(*List); ok {
+		if len(val.Values) == 0 {
+			return []string{}, nil
+		}
+		if start >= len(val.Values) {
+			return []string{}, nil
+		}
+		if stop > len(val.Values)-1 {
+			stop = len(val.Values) - 1
+		}
+		if stop < 0 {
+			stop = len(val.Values) + stop
+		}
+		return val.Values[start : stop+1], nil
+	} else {
+		return nil, fmt.Errorf("invalid list type: %T", val)
+	}
+}
+
 func (s *Server) handleLLen(key string) (int64, error) {
 	val, _ := s.store.LoadOrStore(key, &List{})
 	if val, ok := val.(*List); ok {

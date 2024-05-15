@@ -130,6 +130,9 @@ func (s *StringSliceCmd) String() string {
 }
 
 func (s *StringSliceCmd) setReplay(resp string) {
+	if resp == "" {
+		return
+	}
 	s.vals = strings.Split(resp, ",")
 }
 
@@ -305,6 +308,22 @@ func (c cmdable) LPop(ctx context.Context, key string, n int) *StringSliceCmd {
 
 	cmd.appendArgs(key)
 	cmd.appendArgs(strconv.Itoa(n))
+
+	_ = c(ctx, cmd)
+
+	return cmd
+}
+
+func (c cmdable) LRange(ctx context.Context, key string, start, stop int) *StringSliceCmd {
+	cmd := NewStringSliceCmd(ctx, "lrange")
+
+	if key == "" {
+		cmd.SetErr(errors.New("invalid key"))
+		return cmd
+	}
+
+	cmd.appendArgs(key)
+	cmd.appendArgs(strconv.Itoa(start), strconv.Itoa(stop))
 
 	_ = c(ctx, cmd)
 

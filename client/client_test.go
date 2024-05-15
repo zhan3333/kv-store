@@ -239,3 +239,43 @@ func TestExists(t *testing.T) {
 		}
 	})
 }
+
+func TestLRange(t *testing.T) {
+	t.Run("empty list", func(t *testing.T) {
+		key := "lrangetest"
+		if val, err := cli.LRange(context.Background(), key, 0, -1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, 0, len(val))
+		}
+	})
+
+	t.Run("has value list", func(t *testing.T) {
+		assert.NoError(t, cli.LPush(context.Background(), t.Name(), "val").Err())
+
+		if val, err := cli.LRange(context.Background(), t.Name(), 0, -1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, []string{"val"}, val)
+		}
+
+		assert.NoError(t, cli.LPush(context.Background(), t.Name(), "val2").Err())
+		if val, err := cli.LRange(context.Background(), t.Name(), 0, -1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, []string{"val2", "val"}, val)
+		}
+
+		if val, err := cli.LRange(context.Background(), t.Name(), 0, 0).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, []string{"val2"}, val)
+		}
+
+		if val, err := cli.LRange(context.Background(), t.Name(), 0, 1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, []string{"val2", "val"}, val)
+		}
+	})
+}
