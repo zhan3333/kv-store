@@ -330,6 +330,22 @@ func (c cmdable) LRange(ctx context.Context, key string, start, stop int) *Strin
 	return cmd
 }
 
+func (c cmdable) LTrim(ctx context.Context, key string, start, stop int) *StringCmd {
+	cmd := NewStringCmd(ctx, "ltrim")
+
+	if key == "" {
+		cmd.SetErr(errors.New("invalid key"))
+		return cmd
+	}
+
+	cmd.appendArgs(key)
+	cmd.appendArgs(strconv.Itoa(start), strconv.Itoa(stop))
+
+	_ = c(ctx, cmd)
+
+	return cmd
+}
+
 func (c cmdable) LLen(ctx context.Context, key string) *IntCmd {
 	cmd := NewIntCmd(ctx, "llen", key)
 

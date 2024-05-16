@@ -350,6 +350,24 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 		} else {
 			resp = strings.Join(l, ",")
 		}
+	case "ltrim":
+		if len(cmd.Args) != 3 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		key := cmd.Args[0]
+		start, err := strconv.Atoi(cmd.Args[1])
+		if err != nil {
+			return "", fmt.Errorf("invalid start value: %s", cmd.Args[0])
+		}
+		stop, err := strconv.Atoi(cmd.Args[2])
+		if err != nil {
+			return "", fmt.Errorf("invalid stop value: %s", cmd.Args[1])
+		}
+		if err := s.handleLTrim(key, start, stop); err != nil {
+			return "", err
+		} else {
+			resp = "OK"
+		}
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
@@ -444,6 +462,29 @@ func (s *Server) handleLRange(key string, start int, stop int) ([]string, error)
 		return val.Values[start : stop+1], nil
 	} else {
 		return nil, fmt.Errorf("invalid list type: %T", val)
+	}
+}
+
+func (s *Server) handleLTrim(key string, start int, stop int) error {
+	val, _ := s.store.LoadOrStore(key, &List{})
+	if val, ok := val.(*List); ok {
+		if len(val.Values) == 0 {
+			return nil
+		}
+		if start >= len(val.Values) {
+			val.Values = []string{}
+			return nil
+		}
+		if stop > len(val.Values)-1 {
+			stop = len(val.Values) - 1
+		}
+		if stop < 0 {
+			stop = len(val.Values) + stop
+		}
+		val.Values = val.Values[start : stop+1]
+		return nil
+	} else {
+		return fmt.Errorf("invalid list type: %T", val)
 	}
 }
 

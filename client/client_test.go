@@ -279,3 +279,71 @@ func TestLRange(t *testing.T) {
 		}
 	})
 }
+
+func TestCmdable_LTrim(t *testing.T) {
+	t.Run("trim empty list", func(t *testing.T) {
+		if val, err := cli.LTrim(context.Background(), t.Name(), 0, 0).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "OK", val)
+		}
+	})
+
+	t.Run("trim exists list in range", func(t *testing.T) {
+		assert.NoError(t, cli.LPush(context.Background(), t.Name(), "val").Err())
+
+		if val, err := cli.LTrim(context.Background(), t.Name(), 0, 0).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "OK", val)
+		}
+
+		if val, err := cli.LRange(context.Background(), t.Name(), 0, -1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, []string{"val"}, val)
+		}
+
+		assert.NoError(t, cli.LPush(context.Background(), t.Name(), "val2").Err())
+
+		if val, err := cli.LTrim(context.Background(), t.Name(), 0, 0).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "OK", val)
+		}
+
+		if val, err := cli.LRange(context.Background(), t.Name(), 0, -1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, []string{"val2"}, val)
+		}
+	})
+
+	t.Run("trim end < 0", func(t *testing.T) {
+		assert.NoError(t, cli.LPush(context.Background(), t.Name(), "val", "val1", "val2").Err())
+
+		if val, err := cli.LTrim(context.Background(), t.Name(), 0, -1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "OK", val)
+		}
+
+		if val, err := cli.LRange(context.Background(), t.Name(), 0, -1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, []string{"val2", "val1", "val"}, val)
+		}
+
+		if val, err := cli.LTrim(context.Background(), t.Name(), 0, -2).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "OK", val)
+		}
+
+		if val, err := cli.LRange(context.Background(), t.Name(), 0, -1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, []string{"val2", "val1"}, val)
+		}
+	})
+}
