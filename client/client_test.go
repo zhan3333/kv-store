@@ -347,3 +347,40 @@ func TestCmdable_LTrim(t *testing.T) {
 		}
 	})
 }
+
+func TestCmdable_LIndex(t *testing.T) {
+	t.Run("empty list", func(t *testing.T) {
+		if val, err := cli.LIndex(context.Background(), t.Name(), 0).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "", val)
+		}
+	})
+
+	t.Run("out of index", func(t *testing.T) {
+		assert.NoError(t, cli.LPush(context.Background(), t.Name(), "val").Err())
+		if val, err := cli.LIndex(context.Background(), t.Name(), 1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "", val)
+		}
+	})
+
+	t.Run("index", func(t *testing.T) {
+		assert.NoError(t, cli.LPush(context.Background(), t.Name(), "val").Err())
+		if val, err := cli.LIndex(context.Background(), t.Name(), 0).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "val", val)
+		}
+	})
+
+	t.Run("end index", func(t *testing.T) {
+		assert.NoError(t, cli.LPush(context.Background(), t.Name(), "val").Err())
+		if val, err := cli.LIndex(context.Background(), t.Name(), -1).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, "val", val)
+		}
+	})
+}

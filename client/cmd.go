@@ -346,6 +346,22 @@ func (c cmdable) LTrim(ctx context.Context, key string, start, stop int) *String
 	return cmd
 }
 
+func (c cmdable) LIndex(ctx context.Context, key string, i int) *StringCmd {
+	cmd := NewStringCmd(ctx, "lindex")
+
+	if key == "" {
+		cmd.SetErr(errors.New("invalid key"))
+		return cmd
+	}
+
+	cmd.appendArgs(key)
+	cmd.appendArgs(strconv.Itoa(i))
+
+	_ = c(ctx, cmd)
+
+	return cmd
+}
+
 func (c cmdable) LLen(ctx context.Context, key string) *IntCmd {
 	cmd := NewIntCmd(ctx, "llen", key)
 

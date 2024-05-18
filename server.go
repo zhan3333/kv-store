@@ -368,6 +368,20 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 		} else {
 			resp = "OK"
 		}
+	case "lindex":
+		if len(cmd.Args) != 2 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		key := cmd.Args[0]
+		index, err := strconv.Atoi(cmd.Args[1])
+		if err != nil {
+			return "", fmt.Errorf("invalid index value: %s", cmd.Args[0])
+		}
+		if val, err := s.handleLIndex(key, index); err != nil {
+			return "", err
+		} else {
+			resp = val
+		}
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
@@ -485,6 +499,24 @@ func (s *Server) handleLTrim(key string, start int, stop int) error {
 		return nil
 	} else {
 		return fmt.Errorf("invalid list type: %T", val)
+	}
+}
+
+func (s *Server) handleLIndex(key string, index int) (string, error) {
+	val, _ := s.store.LoadOrStore(key, &List{})
+	if val, ok := val.(*List); ok {
+		if len(val.Values) == 0 {
+			return "", nil
+		}
+		if index > len(val.Values)-1 {
+			return "", nil
+		}
+		if index < 0 {
+			index = len(val.Values) + index
+		}
+		return val.Values[index], nil
+	} else {
+		return "", fmt.Errorf("invalid list type: %T", val)
 	}
 }
 
