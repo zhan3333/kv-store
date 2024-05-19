@@ -547,3 +547,13 @@ func (s *Server) handleExists(key string) string {
 		return "false"
 	}
 }
+
+func (s *Server) handleLSAdd(key string, values ...string) error {
+	raw, _ := s.store.LoadOrStore(key, &Set{Map: map[string]bool{}})
+	if val, ok := raw.(*Set); ok {
+		val.Add(values...)
+		return nil
+	} else {
+		return fmt.Errorf("invalid set type: %T", raw)
+	}
+}

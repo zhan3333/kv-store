@@ -384,3 +384,9 @@ func TestCmdable_LIndex(t *testing.T) {
 		}
 	})
 }
+
+func TestCmdable_SAdd(t *testing.T) {
+	t.Run("empty list", func(t *testing.T) {
+		assert.NoError(t, cli.SAdd(context.Background(), t.Name(), "val").Err())
+	})
+}
