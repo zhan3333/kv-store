@@ -382,6 +382,25 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 		} else {
 			resp = val
 		}
+	case "sadd":
+		if len(cmd.Args) < 2 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		if err := s.handleSAdd(cmd.Args[0], cmd.Args[1:]...); err != nil {
+			return "", err
+		}
+		resp = "OK"
+	case "smembers":
+		if len(cmd.Args) != 1 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		key := cmd.Args[0]
+
+		if l, err := s.handleLSMembers(key); err != nil {
+			return "", err
+		} else {
+			resp = strings.Join(l, ",")
+		}
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
@@ -548,12 +567,25 @@ func (s *Server) handleExists(key string) string {
 	}
 }
 
-func (s *Server) handleLSAdd(key string, values ...string) error {
+func (s *Server) handleSAdd(key string, values ...string) error {
 	raw, _ := s.store.LoadOrStore(key, &Set{Map: map[string]bool{}})
 	if val, ok := raw.(*Set); ok {
 		val.Add(values...)
 		return nil
 	} else {
 		return fmt.Errorf("invalid set type: %T", raw)
+	}
+}
+
+func (s *Server) handleLSMembers(key string) ([]string, error) {
+	raw, _ := s.store.LoadOrStore(key, &Set{Map: map[string]bool{}})
+	if val, ok := raw.(*Set); ok {
+		var keys []string
+		for k := range val.Map {
+			keys = append(keys, k)
+		}
+		return keys, nil
+	} else {
+		return nil, fmt.Errorf("invalid set type: %T", raw)
 	}
 }

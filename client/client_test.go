@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/zhan3333/kystore/client"
+	"sort"
 	"testing"
 	"time"
 
@@ -387,6 +388,28 @@ func TestCmdable_LIndex(t *testing.T) {
 
 func TestCmdable_SAdd(t *testing.T) {
 	t.Run("empty list", func(t *testing.T) {
+		if val, err := cli.SMembers(context.Background(), t.Name()).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, 0, len(val))
+		}
+
 		assert.NoError(t, cli.SAdd(context.Background(), t.Name(), "val").Err())
+
+		if val, err := cli.SMembers(context.Background(), t.Name()).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, []string{"val"}, val)
+		}
+
+		assert.NoError(t, cli.SAdd(context.Background(), t.Name(), "val2").Err())
+
+		if val, err := cli.SMembers(context.Background(), t.Name()).Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			sort.Strings(val)
+			assert.Equal(t, []string{"val", "val2"}, val)
+		}
+
 	})
 }

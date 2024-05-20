@@ -411,3 +411,18 @@ func (c cmdable) SAdd(ctx context.Context, key string, values ...string) *String
 
 	return cmd
 }
+
+func (c cmdable) SMembers(ctx context.Context, key string) *StringSliceCmd {
+	cmd := NewStringSliceCmd(ctx, "smembers")
+
+	if key == "" {
+		cmd.SetErr(errors.New("invalid key"))
+		return cmd
+	}
+
+	cmd.appendArgs(key)
+
+	_ = c(ctx, cmd)
+
+	return cmd
+}
