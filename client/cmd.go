@@ -426,3 +426,16 @@ func (c cmdable) SMembers(ctx context.Context, key string) *StringSliceCmd {
 
 	return cmd
 }
+
+func (c cmdable) SIsMember(ctx context.Context, key string, val string) *BoolCmd {
+	cmd := NewBoolCmd(ctx, "sismember", key, val)
+
+	if key == "" {
+		cmd.SetErr(errors.New("invalid key"))
+		return cmd
+	}
+
+	_ = c(ctx, cmd)
+
+	return cmd
+}

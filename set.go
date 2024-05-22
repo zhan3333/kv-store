@@ -14,3 +14,9 @@ func (s *Set) Add(values ...string) {
 		s.Map[v] = true
 	}
 }
+
+func (s *Set) Has(val string) bool {
+	s.RLock()
+	defer s.RUnlock()
+	return s.Map[val]
+}

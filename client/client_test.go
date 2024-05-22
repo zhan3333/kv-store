@@ -411,5 +411,22 @@ func TestCmdable_SAdd(t *testing.T) {
 			assert.Equal(t, []string{"val", "val2"}, val)
 		}
 
+		if val, err := cli.SIsMember(context.Background(), t.Name(), "val").Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, true, val)
+		}
+
+		if val, err := cli.SIsMember(context.Background(), t.Name(), "val2").Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, true, val)
+		}
+
+		if val, err := cli.SIsMember(context.Background(), t.Name(), "val3").Result(); err != nil {
+			t.Fatal(err)
+		} else {
+			assert.Equal(t, false, val)
+		}
 	})
 }

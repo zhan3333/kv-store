@@ -401,6 +401,22 @@ func (s *Server) handleCommand(c string, aof bool) (resp string, err error) {
 		} else {
 			resp = strings.Join(l, ",")
 		}
+	case "sismember":
+		if len(cmd.Args) != 2 {
+			return "", fmt.Errorf("invalid args number: %s", cmd.FullName)
+		}
+		key := cmd.Args[0]
+		val := cmd.Args[1]
+
+		if b, err := s.handleLSIsMember(key, val); err != nil {
+			return "", err
+		} else {
+			if b {
+				resp = "true"
+			} else {
+				resp = "false"
+			}
+		}
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd.FullName)
 	}
@@ -587,5 +603,14 @@ func (s *Server) handleLSMembers(key string) ([]string, error) {
 		return keys, nil
 	} else {
 		return nil, fmt.Errorf("invalid set type: %T", raw)
+	}
+}
+
+func (s *Server) handleLSIsMember(key string, val string) (bool, error) {
+	raw, _ := s.store.LoadOrStore(key, &Set{Map: map[string]bool{}})
+	if set, ok := raw.(*Set); ok {
+		return set.Has(val), nil
+	} else {
+		return false, fmt.Errorf("invalid set type: %T", raw)
 	}
 }
