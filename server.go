@@ -457,9 +457,7 @@ func (s *Server) handleDel(keys ...string) {
 func (s *Server) handleLPush(key string, values ...string) error {
 	raw, _ := s.store.LoadOrStore(key, &List{})
 	if val, ok := raw.(*List); ok {
-		for i := 0; i < len(values); i++ {
-			val.Values = append([]string{values[i]}, val.Values...)
-		}
+		val.LPush(values...)
 		return nil
 	} else {
 		return fmt.Errorf("invalid list type: %T", raw)
